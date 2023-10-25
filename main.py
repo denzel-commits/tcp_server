@@ -1,32 +1,11 @@
 import socket
 from http.client import responses
-from urllib.parse import urlparse, parse_qs
 from configuration import LOCALHOST, PORT
-
-
-def get_param(url, param_key):
-    parsed_url = urlparse(url)
-    return parse_qs(parsed_url.query)[param_key][0]
-
-
-def parse_client_request(client_data):
-    request = client_data.split("\r\n")
-
-    request_parts = ("method", "uri", "version")
-
-    return {"headers": [header for header in request[1:] if header != ""],
-            "request": dict(zip(request_parts, request[0].split()))}
-
-
-def get_status_code(status_code):
-    if int(status_code) not in responses:
-        return 200
-
-    return status_code
+from src.utilities import validate_status_code, get_param, parse_client_request
 
 
 def http_headers(status_code):
-    status_code = get_status_code(status_code)
+    status_code = validate_status_code(status_code)
     return (
         f"HTTP/1.0 {status_code} {responses[status_code]}\r\n"
         f"Server: otusdemo\r\n"
@@ -37,7 +16,7 @@ def http_headers(status_code):
 
 
 def http_body(client_data_parsed, client_address):
-    status_code = get_status_code(int(get_param(client_data_parsed["request"]["uri"], "status")))
+    status_code = validate_status_code(get_param(client_data_parsed["request"]["uri"], "status"))
 
     method = client_data_parsed["request"]["method"]
     headers = "\r\n".join(client_data_parsed["headers"])
@@ -69,7 +48,7 @@ def handle_client(connection, client_address):
         print(client_data_parsed)
 
         # Send current server time to the client
-        connection.send(http_headers(int(get_param(client_data_parsed["request"]["uri"], "status")))
+        connection.send(http_headers(get_param(client_data_parsed["request"]["uri"], "status"))
                         + http_body(client_data_parsed, client_address)
                         + "\r\n".encode()
                         )
